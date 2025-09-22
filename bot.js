@@ -362,7 +362,18 @@ const nickCache = new Map(); // key: `${guildId}:${userId}` -> lastNickname
 // ====== READY ======
 client.once('ready', async () => {
   console.log(`🤘 Ботът ${client.user.tag} е онлайн и готов да троши!`);
-  // след ready блока, но не вътре в него
+  
+  // Напълни локалния кеш с вече кешираните членове
+  client.guilds.cache.forEach(g => {
+    g.members.cache.forEach(m => {
+      nickCache.set(`${g.id}:${m.id}`, m.nickname || m.user.username);
+    });
+  });
+
+  console.log(`[nicklog] cached ${nickCache.size} members across ${client.guilds.cache.size} guilds.`);
+});
+
+// след ready блока, но не вътре в него
 client.on('guildMemberUpdate', onNickChange);
 // Логване при смяна на глобално име/дисплей име
 client.on('userUpdate', async (oldUser, newUser) => {
@@ -400,22 +411,6 @@ client.on('userUpdate', async (oldUser, newUser) => {
     await logChannel.send({ embeds: [emb] });
   }
 });
-function onNickChange(oldMember, newMember) {
-   // (по желание – за по-точно сравнение веднага след старта; тежко за големи сървъри)
-  // for (const g of client.guilds.cache.values()) {
-  //   try { await g.members.fetch(); } catch (_) {}
-  // }
-
-  // Напълни локалния кеш с вече кешираните членове
-  client.guilds.cache.forEach(g => {
-    g.members.cache.forEach(m => {
-      nickCache.set(`${g.id}:${m.id}`, m.nickname || m.user.username);
-    });
-  });
-
-  console.log(`[nicklog] cached ${nickCache.size} members across ${client.guilds.cache.size} guilds.`);
-});
-
 client.on('error', e => console.warn('Client error:', e?.message));
 process.on('unhandledRejection', r => console.warn('Unhandled rejection:', r));
 // Логика за логване на смяна на ник
