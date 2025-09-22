@@ -560,6 +560,7 @@ client.on('messageCreate', async (message) => {
             '`!stats` – твоята статистика (вкл. днес, този сървър)',
             '`!today` – кой колко е писал днес (този сървър)',
             '`!messages [@user]` – съобщения на потребител (този сървър)',
+            '`!call @user <съобщение>` – изпраща DM на потребител',
             '`!report @user причина | доказателства` – доклад към админите',
             '`!suggest <текст>` – предложение',
             '`!feedback <текст>` – обратна връзка',
@@ -812,6 +813,47 @@ if (cmd === 'removesocial') {
     await ensureUser(message.guild, t.id);
     const d = store[guildId].users[t.id];
     return message.channel.send(`✉️ ${t} има **${d?.messages || 0}** съобщения (в този сървър).`);
+  }
+
+  if (cmd === 'call') {
+    // Handle both @user mention and direct user ID
+    let targetUser = message.mentions.users.first();
+    let messageContent;
+    
+    if (targetUser) {
+      // If user was mentioned, get everything after the mention
+      messageContent = args.filter(arg => !arg.startsWith('<@')).join(' ').trim();
+    } else if (args[0]) {
+      // Try to find user by ID if no mention
+      const userId = args[0].replace(/[<@!>]/g, ''); // Clean up any leftover mention formatting
+      if (/^\d+$/.test(userId)) {
+        try {
+          targetUser = await client.users.fetch(userId);
+          messageContent = args.slice(1).join(' ').trim();
+        } catch {
+          // User not found
+        }
+      }
+    }
+    
+    if (!targetUser) {
+      return message.reply('ℹ️ Ползвай: `!call @user съобщение` или `!call <userID> съобщение`');
+    }
+    
+    if (!messageContent) {
+      return message.reply('ℹ️ Трябва да въведеш съобщение за изпращане!');
+    }
+    
+    try {
+      // Send DM to target user
+      await targetUser.send(`📞 Съобщение от ${message.author.tag} (${message.guild.name}):\n${messageContent}`);
+      
+      // Confirm to the command issuer
+      return message.channel.send(`✅ Съобщението беше изпратено на ${targetUser.tag} като DM.`);
+    } catch (error) {
+      // Handle DM failures (user has DMs disabled, etc.)
+      return message.reply(`❌ Не мога да изпратя DM на ${targetUser.tag}. Възможно е потребителят да има забранени директни съобщения.`);
+    }
   }
 
   // ===== RP (с mention) =====
